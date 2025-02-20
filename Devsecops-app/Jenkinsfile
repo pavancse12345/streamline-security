@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    sh 'docker build -t devsecops-app .'
+                }
+            }
+        }
+        stage('SonarQube Scan') {
+            steps {
+                script {
+                    sh 'sonar-scanner -Dsonar.projectKey=devsecops-app -Dsonar.sources=.'
+                }
+            }
+        }
+        stage('Trivy Scan') {
+            steps {
+                script {
+                    sh 'trivy image --exit-code 1 --severity HIGH,CRITICAL devsecops-app'
+                }
+            }
+        }
+        stage('OWASP ZAP Scan') {
+            steps {
+                script {
+                    sh 'zap-cli quick-scan --self-contained --start-options "-config api.addrs.addr.name=0.0.0.0" http://localhost:5000'
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    sh 'kubectl apply -f k8s/deployment.yaml'
+                }
+            }
+        }
+    }
+}
